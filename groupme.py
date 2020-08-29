@@ -10,7 +10,7 @@ import random
 import praw
 
 config = configparser.RawConfigParser()
-config.read('groupme.properties')
+config.read(os.path.join(os.path.dirname(__file__), 'groupme.properties'))
 
 subreddits = config.get('Reddit', 'subreddits')
 backup_subreddit = config.get('Reddit', 'backup_subreddit')

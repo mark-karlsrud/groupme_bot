@@ -1,4 +1,4 @@
-# Groupme Bot
+# GroupMe Bot
 
 A bot to reply with an image or image link related to your search terms.
 
