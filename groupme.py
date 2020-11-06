@@ -2,13 +2,14 @@
 import configparser
 import os
 import json
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import urlencode # TODO move to requests
+from urllib.request import Request, urlopen # TODO move to requests
 from flask import Flask, request
 import requests
 import random
 import praw
 import io
+from bs4 import BeautifulSoup
 
 config = configparser.RawConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'groupme.properties'))
@@ -114,15 +115,27 @@ def send_reddit_image_subreddit(search_terms, bot_id, subreddits):
             # print(str(vars(result)))
             if image_url:
                 if 'gfycat' in image_url:
+                    print('gfycat: ' + image_url)
                     try:
                         # get redirected url
-                        response = requests.get(result.url)
-                        reply(response.url, bot_id)
+                        response = requests.get(image_url)
+                        print('redirected gfycat: ' + response.url)
+                        gifSource = BeautifulSoup(response.content, 'html.parser').find(id='gifSource')['src']
+                        print('gifSource: ' + gifSource)
+                        reply(gifSource, bot_id)
+                        reply('source: ' + response.url, bot_id)
+                        return True
                     except Exception as e:
-                        reply(result.url, bot_id)
-                    return True
+                        print('gfycat exception: ' + e)
                 else:
-                    if reply_with_image('', image_url, bot_id):
+                    if image_url.endswith('.gifv'):
+                        print('streaming image: ' + image_url)
+                        if reply_with_image('', image_url, bot_id):
+                            return True
+                    else:
+                        print('returning image: ' + image_url)
+                        reply(image_url, bot_id) # For most devices, the groupme app will automatically load the image within the app.
+                        reply('source: ' + image_url, bot_id) # For devices where this doesn't work, provide the source URL
                         return True
             else:
                 #TODO fallback to other site?
@@ -131,6 +144,7 @@ def send_reddit_image_subreddit(search_terms, bot_id, subreddits):
             print(e)
     return False
 
+"""
 def get_gfycat_url(url):
         base_url = 'https://api.gfycat.com/v1/gfycats/'
         id = url.split('/')[-1]
@@ -140,6 +154,7 @@ def get_gfycat_url(url):
         else:
             send_error(response.status_code)
             return None
+"""
 
 ################################################################################
 
