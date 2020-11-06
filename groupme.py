@@ -1,9 +1,6 @@
 #!/usr/bin/python    
 import configparser
 import os
-import json
-from urllib.parse import urlencode # TODO move to requests
-from urllib.request import Request, urlopen # TODO move to requests
 from flask import Flask, request
 import requests
 import random
@@ -60,24 +57,22 @@ def send_error(message):
 # Send a message in the groupchat
 def reply(msg, bot_id):
     url = 'https://api.groupme.com/v3/bots/post'
-    data = {
+    body = {
         'bot_id'                : bot_id,
         'text'                  : msg
     }
-    request = Request(url, urlencode(data).encode())
-    json = urlopen(request).read().decode()
+    requests.post(url, json=body)
 
 # Send a message with an image attached in the groupchat
 def reply_with_image(msg, imgURL, bot_id):
     url = 'https://api.groupme.com/v3/bots/post'
     urlOnGroupMeService = upload_image_to_groupme(imgURL)
-    data = {
+    body = {
         'bot_id'                : bot_id,
         'text'                  : msg,
         'picture_url'           : urlOnGroupMeService
     }
-    request = Request(url, urlencode(data).encode())
-    json = urlopen(request).read().decode()
+    requests.post(url, json=body)
     return urlOnGroupMeService
         
 # Uploads image to GroupMe's services and returns the new URL
