@@ -8,6 +8,7 @@ from flask import Flask, request
 import requests
 import random
 import praw
+import io
 
 config = configparser.RawConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'groupme.properties'))
@@ -84,22 +85,16 @@ def upload_image_to_groupme(imgURL):
         for response in imgRequest.history:
             if response.status_code == 302:
                 return
-        filename = 'temp.png'
-        postImage = None
         print(imgURL)
         if imgRequest.status_code == 200:
-                # Save Image
-                with open(filename, 'wb') as image:
-                        for chunk in imgRequest:
-                                image.write(chunk)
-                # Send Image
-                headers = {'content-type': 'application/json'}
+                # Upload Image
                 url = 'https://image.groupme.com/pictures'
-                files = {'file': open(filename, 'rb')}
+                streamFile = io.BytesIO(imgRequest.content).getvalue()
+                files = {'file': streamFile}
+                imgRequest.close()
                 payload = {'access_token': access_token}
                 r = requests.post(url, files=files, params=payload)
                 imageurl = r.json()['payload']['url']
-                os.remove(filename)
                 return imageurl
 
 # Checks whether the message sender is a bot
