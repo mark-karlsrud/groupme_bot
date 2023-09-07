@@ -4,28 +4,16 @@ import os
 from flask import Flask, request
 import requests
 import random
-import praw
 import io
-from bs4 import BeautifulSoup
 
 config = configparser.RawConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'groupme.properties'))
 
-subreddits = config.get('Reddit', 'subreddits')
-backup_subreddit = config.get('Reddit', 'backup_subreddit')
-
 access_token = config.get('GroupMe', 'access_token')
 bot_name = config.get('GroupMe', 'bot_name')
 
-reddit_id = config.get('Reddit', 'reddit_id')
-reddit_secret = config.get('Reddit', 'reddit_secret')
-reddit_username = config.get('Reddit', 'reddit_username')
-reddit_token = config.get('Reddit', 'reddit_token')
-reddit_useragent = 'rpi:com.' + reddit_username + '.groupme:v1 (by /u/' + reddit_username + ')'
-reddit_nsfw = config.get('Reddit', 'reddit_nsfw')
-
-reddit = praw.Reddit(client_id=reddit_id, client_secret=reddit_secret, user_agent=reddit_useragent)
-reddit.read_only = True
+rapid_api_key = config.get('RapidApi', 'key')
+rapid_api_safe_search = config.get('RapidApi', 'safe_search')
 
 app = Flask(__name__)
 
@@ -41,9 +29,8 @@ def webhook(channel):
     text = message['text']
     if text.startswith('@' + bot_name):
         search_terms = text.replace('@' + bot_name,'')
-        if not send_reddit_image(search_terms, bot_id):
-            if not send_reddit_image_subreddit(search_terms, bot_id, backup_subreddit):
-                reply("Can't help you there...", bot_id)
+        if not send_bing_image(search_terms, bot_id):
+            reply("Can't help you there...", bot_id)
     
     print('returning...')
     return "ok", 200
@@ -98,58 +85,32 @@ def sender_is_bot(message):
 
 ################################################################################
 
-def send_reddit_image(search_terms, bot_id):
-    return send_reddit_image_subreddit(search_terms, bot_id, subreddits.replace(',','+'))
+def send_bing_image(search_terms, bot_id):
+    url = "https://bing-image-search1.p.rapidapi.com/images/search"
 
-def send_reddit_image_subreddit(search_terms, bot_id, subreddits):
-    results = list(reddit.subreddit(subreddits).search(search_terms, params={'include_over_18': reddit_nsfw}))
+    querystring = {
+        "q": search_terms,
+        "safeSearch": rapid_api_safe_search
+    }
+
+    headers = {
+        "X-RapidAPI-Key": rapid_api_key,
+        "X-RapidAPI-Host": "bing-image-search1.p.rapidapi.com"
+    }
+
+    response = requests.get(url, headers=headers, params=querystring)
+
+    results = response.json()["value"]
     random.shuffle(results)
     for result in results:
-        image_url = result.url
+        image_url = result["contentUrl"]
         try:
-            # print(str(vars(result)))
             if image_url:
-                if 'gfycat' in image_url:
-                    print('gfycat: ' + image_url)
-                    try:
-                        # get redirected url
-                        response = requests.get(image_url)
-                        print('redirected gfycat: ' + response.url)
-                        gifSource = BeautifulSoup(response.content, 'html.parser').find(id='gifSource')['src']
-                        print('gifSource: ' + gifSource)
-                        reply(gifSource, bot_id)
-                        reply('source: ' + response.url, bot_id)
-                        return True
-                    except Exception as e:
-                        print('gfycat exception: ' + e)
-                else:
-                    if image_url.endswith('.gifv'):
-                        print('streaming image: ' + image_url)
-                        if reply_with_image('', image_url, bot_id):
-                            return True
-                    else:
-                        print('returning image: ' + image_url)
-                        reply(image_url, bot_id) # For most devices, the groupme app will automatically load the image within the app.
-                        reply('source: ' + image_url, bot_id) # For devices where this doesn't work, provide the source URL
-                        return True
-            else:
-                #TODO fallback to other site?
-                send_error('no image url')
+                reply(image_url, bot_id)
+                return True
         except Exception as e:
             print(e)
     return False
-
-"""
-def get_gfycat_url(url):
-        base_url = 'https://api.gfycat.com/v1/gfycats/'
-        id = url.split('/')[-1]
-        response = requests.get(base_url + id)
-        if response.status_code == 200:
-            return response.json()['gfyItem']['gifUrl']
-        else:
-            send_error(response.status_code)
-            return None
-"""
 
 ################################################################################
 
