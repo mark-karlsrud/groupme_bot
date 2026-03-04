@@ -1,0 +1,4 @@
+flask
+praw
+requests
+python-dotenv
