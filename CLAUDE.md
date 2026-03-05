@@ -34,23 +34,39 @@ Three modules with clear responsibilities:
 - Imgur `.gifv` links are converted to `.mp4`.
 - If image upload fails (missing token or network error), falls back to posting the raw URL as text.
 
-## Deploying on Koyeb
+## Deploying on Fly.io
 
-Koyeb's free tier is always-on (no sleep), has no outbound network restrictions, and auto-installs `requirements.txt`.
+Fly.io runs the app as a real VM — no sleep, no dropped webhooks, and the in-memory result cache persists across requests. Deploys happen automatically on every push to `master` via GitHub Actions.
 
-1. **Push code to GitHub** (make sure `.env` is in `.gitignore` — it is).
+### One-time setup
 
-2. **Sign up** at [koyeb.com](https://www.koyeb.com) and create a new **Web Service** → *Deploy from GitHub* → select your repo.
+1. **Install `flyctl`:**
+   - macOS/Linux: `curl -L https://fly.io/install.sh | sh`
+   - Windows (PowerShell): `iwr https://fly.io/install.ps1 -useb | iex`
 
-3. **Configure the service:**
-   - **Run command:** `python app.py`
-   - **Port:** `5000`
+2. **Login:** `flyctl auth login`
 
-4. **Add environment variables** — In the *Environment* tab, add each key from `.env.example` with your actual values.
+3. **Initialize the app** (run once from the project directory):
+   ```bash
+   flyctl launch
+   ```
+   This creates a `fly.toml` config file — commit it to the repo. Fly will auto-detect Python via nixpacks; no Dockerfile needed.
 
-5. **Deploy** — Koyeb gives you a public URL like `https://your-app.koyeb.app`. Set the GroupMe bot's callback URL to `https://your-app.koyeb.app/webhook` in the GroupMe developer portal.
+4. **Set your app secrets** (stored on Fly, never in GitHub):
+   ```bash
+   flyctl secrets set GROUPME_BOT_ID=xxx GROUPME_ACCESS_TOKEN=xxx \
+     REDDIT_CLIENT_ID=xxx REDDIT_CLIENT_SECRET=xxx \
+     REDDIT_USER_AGENT="groupme_bot/1.0 by u/username" \
+     SUBREDDITS="gifs,funny,videos,aww" NSFW=false
+   ```
 
-To redeploy after changes, just push to GitHub — Koyeb redeploys automatically.
+5. **Add `FLY_API_TOKEN` to GitHub** — this allows GitHub Actions to deploy on your behalf:
+   - Run `flyctl tokens create deploy` and copy the token
+   - In your GitHub repo → *Settings* → *Secrets and variables* → *Actions* → add secret named `FLY_API_TOKEN`
+
+6. **Push to `master`** — the GitHub Actions workflow (`.github/workflows/fly.yml`) will build and deploy automatically. Fly gives you a URL like `https://your-app.fly.dev`. Set the GroupMe bot's callback URL to `https://your-app.fly.dev/webhook` in the GroupMe developer portal.
+
+All future deploys are automatic on push — no manual steps needed.
 
 ## Required credentials
 

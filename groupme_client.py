@@ -3,16 +3,15 @@ import requests
 BOT_POST_URL = "https://api.groupme.com/v3/bots/post"
 IMAGE_UPLOAD_URL = "https://image.groupme.com/pictures"
 
-
 def send_message(bot_id: str, text: str, attachment: dict = None):
-    payload = {"bot_id": bot_id, "text": text}
+    payload = {"bot_id": bot_id, "text": text or " "}
     if attachment:
         payload["attachments"] = [attachment]
     try:
         resp = requests.post(BOT_POST_URL, json=payload, timeout=10)
         resp.raise_for_status()
     except requests.RequestException as e:
-        print(f"[groupme] Send error: {e}")
+        print(f"[groupme] Send failed: {e} | payload={payload}")
 
 
 def upload_image(image_url: str, access_token: str) -> str | None:
@@ -37,5 +36,5 @@ def upload_image(image_url: str, access_token: str) -> str | None:
         upload_resp.raise_for_status()
         return upload_resp.json()["payload"]["picture_url"]
     except Exception as e:
-        print(f"[groupme] Image upload error: {e}")
+        print(f"[groupme] Image upload failed ({image_url}): {type(e).__name__}: {e}")
         return None

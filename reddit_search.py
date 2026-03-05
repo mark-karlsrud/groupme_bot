@@ -4,6 +4,14 @@ import praw
 
 
 def _get_reddit():
+    refresh_token = os.getenv("REDDIT_REFRESH_TOKEN")
+    if refresh_token:
+        return praw.Reddit(
+            client_id=os.getenv("REDDIT_CLIENT_ID"),
+            client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
+            user_agent=os.getenv("REDDIT_USER_AGENT", "groupme_bot/1.0"),
+            refresh_token=refresh_token,
+        )
     return praw.Reddit(
         client_id=os.getenv("REDDIT_CLIENT_ID"),
         client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
@@ -61,20 +69,50 @@ def _extract_media(post) -> Optional[dict]:
     return None
 
 
+def _collect_media(posts, keyword: str, nsfw: bool) -> list:
+    results = []
+    total = skipped_nsfw = skipped_no_media = 0
+    kw = keyword.lower()
+    for post in posts:
+        total += 1
+        if not nsfw and post.over_18:
+            skipped_nsfw += 1
+            continue
+        media = _extract_media(post)
+        if media:
+            results.append(media)
+        else:
+            skipped_no_media += 1
+    print(f"[reddit] {total} posts scanned, {len(results)} with media, {skipped_nsfw} skipped (nsfw), {skipped_no_media} skipped (no media)")
+    return results
+
+
 def get_media_posts(keyword: str, subreddits: list, limit: int = 50, nsfw: bool = False) -> list:
     reddit = _get_reddit()
-    results = []
     subreddit_str = "+".join(subreddits)
 
     try:
         sub = reddit.subreddit(subreddit_str)
-        for post in sub.search(keyword, sort="relevance", time_filter="all", limit=limit):
-            if not nsfw and post.over_18:
-                continue
-            media = _extract_media(post)
-            if media:
-                results.append(media)
+
+        # Try search first
+        print(f"[reddit] Searching r/{subreddit_str} for '{keyword}'")
+        results = _collect_media(
+            sub.search(keyword, sort="relevance", time_filter="all", limit=limit),
+            keyword, nsfw
+        )
+
+        # Reddit blocks search on NSFW subreddits anonymously — fall back to hot/top filtered by title
+        if not results:
+            print(f"[reddit] Search returned nothing — falling back to hot/top filtered by title keyword")
+            kw = keyword.lower()
+            candidates = list(sub.hot(limit=limit)) + list(sub.top(time_filter="month", limit=limit))
+            matching = [p for p in candidates if kw in p.title.lower()]
+            results = _collect_media(matching if matching else candidates, keyword, nsfw)
+            if not matching:
+                print(f"[reddit] No title matches for '{keyword}' — returning unfiltered hot/top results")
+
     except Exception as e:
-        print(f"[reddit] Search error for '{keyword}': {e}")
+        print(f"[reddit] Failed for '{keyword}': {type(e).__name__}: {e}")
+        return []
 
     return results
