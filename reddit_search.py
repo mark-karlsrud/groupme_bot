@@ -68,7 +68,7 @@ def get_media_posts(keyword: str, subreddits: list, limit: int = 50, nsfw: bool 
 
     try:
         sub = reddit.subreddit(subreddit_str)
-        for post in sub.search(keyword, sort="relevance", time_filter="all", limit=limit, include_over_18=nsfw):
+        for post in sub.search(keyword, sort="relevance", time_filter="all", limit=limit):
             if not nsfw and post.over_18:
                 continue
             media = _extract_media(post)

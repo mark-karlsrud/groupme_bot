@@ -1,0 +1,5 @@
+app = "groupme-bot-nhvykw"
+
+[http_service]
+  internal_port = 5000
+  force_https = true

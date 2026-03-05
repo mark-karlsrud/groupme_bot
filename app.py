@@ -48,7 +48,9 @@ def webhook():
         return jsonify({"status": "bad_request"}), 400
 
     # Ignore messages sent by bots (including ourselves)
-    if data.get("sender_type") == "bot":
+    sender_type = data.get("sender_type")
+    print(f"[bot] Incoming: sender_type={sender_type!r} text={data.get('text', '')!r}")
+    if sender_type == "bot":
         return jsonify({"status": "ignored"}), 200
 
     text = data.get("text", "").strip()
